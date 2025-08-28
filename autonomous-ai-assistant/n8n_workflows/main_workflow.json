@@ -1,0 +1,131 @@
+{
+  "name": "AI Assistant Command Processor",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ai-command",
+        "httpMethod": "POST",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        860,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://app:5000/process",
+        "sendBody": true,
+        "contentType": "application/json",
+        "body": "{\"command\":\"={{$json.body.command}}\"}",
+        "options": {}
+      },
+      "name": "Get Intent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1080,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.intent.label}}",
+              "operation": "equal",
+              "value2": "File Management"
+            }
+          ]
+        }
+      },
+      "name": "Intent is File Management?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://app:5000/execute/file_management",
+        "sendBody": true,
+        "contentType": "application/json",
+        "body": "{\"action\":\"create_folder\",\"parameters\":{\"folder_name\":\"Project Documents\"}}",
+        "options": {}
+      },
+      "name": "Create Folder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1520,
+        340
+      ]
+    },
+    {
+      "parameters": {},
+      "name": "Handle Other Intents",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        540
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Intent": {
+      "main": [
+        [
+          {
+            "node": "Intent is File Management?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intent is File Management?": {
+      "main": [
+        [
+          {
+            "node": "Create Folder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Other Intents",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

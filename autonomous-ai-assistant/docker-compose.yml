@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./app:/usr/src/app/app
+      - ./data:/usr/src/app/data
+    env_file:
+      - .env
+    networks:
+      - assistant_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s # <-- INCREASED FROM 60s to 180s
+
+  n8n:
+    image: n8nio/n8n
+    ports:
+      - "5678:5678"
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+    networks:
+      - assistant_network
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_USER_MANAGEMENT_DISABLED=true
+      - NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+    depends_on:
+      app:
+        condition: service_healthy
+
+networks:
+  assistant_network:
