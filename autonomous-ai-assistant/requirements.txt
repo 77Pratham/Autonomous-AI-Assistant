@@ -2,17 +2,26 @@
 transformers==4.35.2
 spacy==3.7.2
 huggingface-hub==0.20.3
+sentence-transformers==2.2.2
+torch==2.1.0
 tqdm
 scikit-learn
 scipy
 nltk
 Pillow==10.1.0
+
 # Vector Database
 faiss-cpu==1.7.4
 numpy==1.26.2
 
 # Web Server for API
 flask==3.0.0
+flask-cors==4.0.0
+
+# Additional utilities
+python-dotenv==1.0.0
+requests==2.31.0
+pyyaml==6.0.1
 
 # Language model for spaCy
-# en_core_web_sm
+# en_core_web_sm (installed via Dockerfile)

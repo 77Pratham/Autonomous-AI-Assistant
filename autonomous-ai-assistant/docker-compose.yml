@@ -17,7 +17,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 180s # <-- INCREASED FROM 60s to 180s
+      start_period: 180s
 
   n8n:
     image: n8nio/n8n
@@ -25,6 +25,7 @@ services:
       - "5678:5678"
     volumes:
       - ./n8n_data:/home/node/.n8n
+      - ./n8n_workflows:/home/node/n8n/workflows
     networks:
       - assistant_network
     environment:
@@ -32,7 +33,6 @@ services:
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
       - N8N_USER_MANAGEMENT_DISABLED=true
-      - NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
     depends_on:
       app:
         condition: service_healthy
