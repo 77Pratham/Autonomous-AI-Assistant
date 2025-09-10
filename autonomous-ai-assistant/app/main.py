@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from .nlp_engine import NLPEngine
 from .rag_system import RAGSystem
-from .automation_scripts import file_management # <-- IMPORT THE NEW SCRIPT
+from .automation_scripts import file_management
 
 app = Flask(__name__)
 
@@ -16,13 +16,11 @@ except Exception as e:
 
 @app.route('/')
 def index():
+    # This endpoint will also serve as our health check
     return "AI Assistant API is running."
-
-# --- NLP and RAG Endpoints ---
 
 @app.route('/process', methods=['POST'])
 def process():
-    # ... (code for this endpoint is unchanged)
     if nlp_engine is None: return jsonify({"error": "NLP Engine is not available."}), 503
     data = request.get_json()
     if not data or 'command' not in data: return jsonify({"error": "Invalid request. 'command' key is required."}), 400
@@ -34,10 +32,8 @@ def process():
         print(f"Error processing command: {e}")
         return jsonify({"error": "An internal error occurred."}), 500
 
-
 @app.route('/add_context', methods=['POST'])
 def add_context():
-    # ... (code for this endpoint is unchanged)
     if rag_system is None: return jsonify({"error": "RAG System is not available."}), 503
     data = request.get_json()
     if not data or 'text' not in data: return jsonify({"error": "Invalid request. 'text' key is required."}), 400
@@ -45,19 +41,14 @@ def add_context():
     rag_system.add_document(text)
     return jsonify({"message": "Context added successfully."}), 201
 
-
 @app.route('/get_context', methods=['POST'])
 def get_context():
-    # ... (code for this endpoint is unchanged)
     if rag_system is None: return jsonify({"error": "RAG System is not available."}), 503
     data = request.get_json()
     if not data or 'query' not in data: return jsonify({"error": "Invalid request. 'query' key is required."}), 400
     query = data['query']
     results = rag_system.retrieve(query)
-    return jsonify(results)
-
-
-# --- NEW EXECUTION ENDPOINT ---
+    return jsonify({"results": results})
 
 @app.route('/execute/file_management', methods=['POST'])
 def execute_file_management():
@@ -74,7 +65,6 @@ def execute_file_management():
         return jsonify(result)
     
     return jsonify({"status": "error", "message": "Unknown action."}), 400
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

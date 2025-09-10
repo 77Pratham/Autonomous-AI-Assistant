@@ -17,7 +17,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 180s # <-- INCREASED FROM 60s to 180s
+      start_period: 180s #<-- Gives the AI models 3 minutes to load before checking
 
   n8n:
     image: n8nio/n8n
@@ -35,7 +35,7 @@ services:
       - NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
     depends_on:
       app:
-        condition: service_healthy
+        condition: service_healthy #<-- n8n will wait until the app is healthy
 
 networks:
   assistant_network:

@@ -7,6 +7,8 @@ scikit-learn
 scipy
 nltk
 Pillow==10.1.0
+requests
+tqdm
 # Vector Database
 faiss-cpu==1.7.4
 numpy==1.26.2
