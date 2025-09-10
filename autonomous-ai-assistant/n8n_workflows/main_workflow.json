@@ -4,8 +4,7 @@
     {
       "parameters": {
         "path": "ai-command",
-        "httpMethod": "POST",
-        "options": {}
+        "httpMethod": "POST"
       },
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
@@ -20,9 +19,8 @@
         "method": "POST",
         "url": "http://app:5000/process",
         "sendBody": true,
-        "contentType": "application/json",
-        "body": "{\"command\":\"={{$json.body.command}}\"}",
-        "options": {}
+        "contentType": "json",
+        "jsonBody": "={{ { \"command\": $json.body.command || \"Create a folder for project files\" } }}"
       },
       "name": "Get Intent",
       "type": "n8n-nodes-base.httpRequest",
@@ -57,9 +55,8 @@
         "method": "POST",
         "url": "http://app:5000/execute/file_management",
         "sendBody": true,
-        "contentType": "application/json",
-        "body": "{\"action\":\"create_folder\",\"parameters\":{\"folder_name\":\"Project Documents\"}}",
-        "options": {}
+        "contentType": "json",
+        "jsonBody": "={{ { \"action\": \"create_folder\", \"parameters\": { \"folder_name\": $json.body.command.split(' ').pop() } } }}"
       },
       "name": "Create Folder",
       "type": "n8n-nodes-base.httpRequest",
