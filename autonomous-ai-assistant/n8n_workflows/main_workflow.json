@@ -1,54 +1,81 @@
 {
-  "name": "AI Assistant Command Processor",
+  "name": "Enhanced AI Assistant Command Processor",
   "nodes": [
     {
       "parameters": {
-        "path": "ai-command",
-        "httpMethod": "POST"
+        "path": "ai-assistant",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
       },
-      "name": "Webhook",
+      "name": "Webhook - Receive Command",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [
-        860,
-        440
-      ]
+      "position": [400, 300],
+      "webhookId": "ai-assistant-webhook"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "http://app:5000/process",
+        "url": "http://app:5000/execute/smart_command",
         "sendBody": true,
         "contentType": "json",
-        "jsonBody": "={{ { \"command\": $json.body.command || \"Create a folder for project files\" } }}"
+        "jsonBody": "={{ {\n  \"command\": $json.body.command || \"Help me process this command\"\n} }}"
       },
-      "name": "Get Intent",
+      "name": "Process Command via AI",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [
-        1080,
-        440
-      ]
+      "position": [620, 300]
     },
     {
       "parameters": {
         "conditions": {
           "string": [
             {
-              "value1": "={{$json.intent.label}}",
+              "value1": "={{$json.processed_command.intent.label}}",
               "operation": "equal",
               "value2": "File Management"
             }
           ]
         }
       },
-      "name": "Intent is File Management?",
+      "name": "Is File Management?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        1300,
-        440
-      ]
+      "position": [840, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.processed_command.intent.label}}",
+              "operation": "equal",
+              "value2": "Email Handling"
+            }
+          ]
+        }
+      },
+      "name": "Is Email Handling?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [840, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.processed_command.intent.label}}",
+              "operation": "equal",
+              "value2": "Scheduling"
+            }
+          ]
+        }
+      },
+      "name": "Is Scheduling?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [840, 700]
     },
     {
       "parameters": {
@@ -56,73 +83,358 @@
         "url": "http://app:5000/execute/file_management",
         "sendBody": true,
         "contentType": "json",
-        "jsonBody": "={{ { \"action\": \"create_folder\", \"parameters\": { \"folder_name\": $json.body.command.split(' ').pop() } } }}"
+        "jsonBody": "={{ {\n  \"action\": \"create_folder\",\n  \"parameters\": {\n    \"folder_name\": $json.execution_result.folder_name || \"DefaultFolder\"\n  }\n} }}"
       },
-      "name": "Create Folder",
+      "name": "Execute File Operation",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [
-        1520,
-        340
-      ]
+      "position": [1060, 200]
     },
     {
-      "parameters": {},
-      "name": "Handle Other Intents",
-      "type": "n8n-nodes-base.noOp",
+      "parameters": {
+        "method": "POST",
+        "url": "http://app:5000/execute/email",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ {\n  \"action\": \"read_unread\",\n  \"parameters\": {\n    \"limit\": 10\n  }\n} }}"
+      },
+      "name": "Execute Email Operation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1060, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://app:5000/execute/calendar",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ {\n  \"action\": \"create_from_command\",\n  \"parameters\": {\n    \"command\": $json.body.command\n  }\n} }}"
+      },
+      "name": "Execute Calendar Operation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1060, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"status\": \"success\",\n  \"message\": \"Command processed successfully\",\n  \"intent\": $json.processed_command.intent.label,\n  \"confidence\": $json.processed_command.intent.score,\n  \"execution_result\": $json.execution_result || $json,\n  \"timestamp\": $now\n} }}"
+      },
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [
-        1520,
-        540
-      ]
+      "position": [1280, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"status\": \"info\",\n  \"message\": \"Command processed but no specific action taken\",\n  \"intent\": $json.processed_command.intent.label || \"Unknown\",\n  \"original_command\": $json.body.command,\n  \"timestamp\": $now\n} }}"
+      },
+      "name": "Info Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1060, 800]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"status\": \"error\",\n  \"message\": \"Failed to process command\",\n  \"error\": $json.error || \"Unknown error occurred\",\n  \"timestamp\": $now\n} }}"
+      },
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [620, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://app:5000/add_context",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ {\n  \"text\": \"User executed command: \" + $json.body.command + \" with result: \" + ($json.execution_result.message || \"completed\")\n} }}"
+      },
+      "name": "Add to Knowledge Base",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1280, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.processed_command.intent.label}}",
+              "operation": "equal",
+              "value2": "Data Analysis"
+            }
+          ]
+        }
+      },
+      "name": "Is Data Analysis?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [840, 900]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://app:5000/execute/data_analysis",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ {\n  \"action\": \"quick_summary\",\n  \"parameters\": {\n    \"file_path\": \"/usr/src/app/data/output/sample_data.csv\"\n  }\n} }}"
+      },
+      "name": "Execute Data Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1060, 1000]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.processed_command.intent.score}}",
+              "operation": "smaller",
+              "value2": 0.5
+            }
+          ]
+        }
+      },
+      "name": "Low Confidence Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [620, 700]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://app:5000/get_context",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ {\n  \"query\": $json.body.command,\n  \"k\": 3\n} }}"
+      },
+      "name": "Get Relevant Context",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [840, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"status\": \"low_confidence\",\n  \"message\": \"Command processed with low confidence. Here's what I found:\",\n  \"intent\": $json.processed_command.intent.label,\n  \"confidence\": $json.processed_command.intent.score,\n  \"suggestions\": \"Try being more specific or use keywords like 'create folder', 'send email', 'schedule meeting', 'analyze data'\",\n  \"relevant_context\": $json.results,\n  \"timestamp\": $now\n} }}"
+      },
+      "name": "Low Confidence Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1060, 700]
     }
   ],
   "connections": {
-    "Webhook": {
+    "Webhook - Receive Command": {
       "main": [
         [
           {
-            "node": "Get Intent",
+            "node": "Process Command via AI",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Intent": {
+    "Process Command via AI": {
       "main": [
         [
           {
-            "node": "Intent is File Management?",
+            "node": "Is File Management?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Low Confidence Check",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Intent is File Management?": {
+    "Is File Management?": {
       "main": [
         [
           {
-            "node": "Create Folder",
+            "node": "Execute File Operation",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Handle Other Intents",
+            "node": "Is Email Handling?",
             "type": "main",
-            "index": 1
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Email Handling?": {
+      "main": [
+        [
+          {
+            "node": "Execute Email Operation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Scheduling?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Scheduling?": {
+      "main": [
+        [
+          {
+            "node": "Execute Calendar Operation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Data Analysis?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute File Operation": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Add to Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Email Operation": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Add to Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Calendar Operation": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Add to Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Data Analysis?": {
+      "main": [
+        [
+          {
+            "node": "Execute Data Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Info Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Data Analysis": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Add to Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Low Confidence Check": {
+      "main": [
+        [
+          {
+            "node": "Get Relevant Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Get Relevant Context": {
+      "main": [
+        [
+          {
+            "node": "Low Confidence Response",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
     }
   },
-  "active": false,
-  "settings": {},
-  "id": "1",
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "enhanced_ai_assistant",
   "meta": {
-    "templateCredsSetupCompleted": true
-  }
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ai-assistant-workflow"
+  },
+  "tags": [
+    {
+      "id": "ai-automation",
+      "name": "AI Automation"
+    },
+    {
+      "id": "nlp-processing",
+      "name": "NLP Processing"
+    }
+  ]
 }

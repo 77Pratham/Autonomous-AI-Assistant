@@ -453,4 +453,373 @@ def execute_file_management():
             force = parameters.get('force', False)
             if not path:
                 return jsonify({"status": "error", "message": "'path' parameter is required"}), 400
-            result = file_management.delete_file_or_folder(path, force
+            result = file_management.delete_file_or_folder(path, force)
+            
+        elif action == 'move':
+            source_path = parameters.get('source_path')
+            dest_path = parameters.get('destination_path')
+            if not source_path or not dest_path:
+                return jsonify({"status": "error", "message": "Both 'source_path' and 'destination_path' required"}), 400
+            result = file_management.move_file_or_folder(source_path, dest_path)
+            
+        elif action == 'copy':
+            source_path = parameters.get('source_path')
+            dest_path = parameters.get('destination_path')
+            if not source_path or not dest_path:
+                return jsonify({"status": "error", "message": "Both 'source_path' and 'destination_path' required"}), 400
+            result = file_management.copy_file_or_folder(source_path, dest_path)
+            
+        elif action == 'create_file':
+            file_name = parameters.get('file_name')
+            content = parameters.get('content', '')
+            path = parameters.get('path', '/usr/src/app/data/output')
+            if not file_name:
+                return jsonify({"status": "error", "message": "'file_name' parameter is required"}), 400
+            result = file_management.create_file(file_name, content, path)
+            
+        elif action == 'read_file':
+            file_path = parameters.get('file_path')
+            if not file_path:
+                return jsonify({"status": "error", "message": "'file_path' parameter is required"}), 400
+            result = file_management.read_file(file_path)
+            
+        else:
+            return jsonify({
+                "status": "error", 
+                "message": f"Unknown action: {action}. Available actions: create_folder, list_files, delete, move, copy, create_file, read_file"
+            }), 400
+            
+        return jsonify(result)
+            
+    except Exception as e:
+        logger.error(f"Error in file management execution: {e}")
+        return jsonify({"error": "An internal error occurred"}), 500
+
+@app.route('/execute/email', methods=['POST'])
+def execute_email():
+    """Execute email operations"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Invalid request. JSON data required"}), 400
+        
+        action = data.get('action')
+        parameters = data.get('parameters', {})
+        
+        if not action:
+            return jsonify({"error": "'action' parameter is required"}), 400
+        
+        if action == 'send':
+            to_emails = parameters.get('to_emails', [])
+            subject = parameters.get('subject', '')
+            body = parameters.get('body', '')
+            
+            if not to_emails or not subject or not body:
+                return jsonify({
+                    "status": "error",
+                    "message": "to_emails, subject, and body parameters are required"
+                }), 400
+                
+            result = send_email(to_emails, subject, body, **parameters)
+            
+        elif action == 'read_unread':
+            limit = parameters.get('limit', 10)
+            since_days = parameters.get('since_days', 1)
+            result = read_unread_emails(limit, since_days)
+            
+        elif action == 'summarize':
+            days = parameters.get('days', 1)
+            limit = parameters.get('limit', 10)
+            result = summarize_recent_emails(days, limit)
+            
+        else:
+            return jsonify({
+                "status": "error",
+                "message": f"Unknown action: {action}. Available actions: send, read_unread, summarize"
+            }), 400
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error in email execution: {e}")
+        return jsonify({"error": "An internal error occurred"}), 500
+
+@app.route('/execute/calendar', methods=['POST'])
+def execute_calendar():
+    """Execute calendar operations"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Invalid request. JSON data required"}), 400
+        
+        action = data.get('action')
+        parameters = data.get('parameters', {})
+        
+        if not action:
+            return jsonify({"error": "'action' parameter is required"}), 400
+        
+        calendar = CalendarIntegration()
+        
+        if action == 'create_from_command':
+            command = parameters.get('command', '')
+            if not command:
+                return jsonify({"status": "error", "message": "'command' parameter is required"}), 400
+            result = create_meeting_from_command(command)
+            
+        elif action == 'get_schedule':
+            result = get_daily_schedule()
+            
+        elif action == 'get_week':
+            result = calendar.get_week_schedule()
+            
+        elif action == 'schedule_quick':
+            title = parameters.get('title', 'Quick Meeting')
+            attendee_emails = parameters.get('attendee_emails', [])
+            hours_from_now = parameters.get('hours_from_now', 1)
+            
+            from automation_scripts.google_calendar import schedule_quick_meeting
+            result = schedule_quick_meeting(title, attendee_emails, hours_from_now)
+            
+        elif action == 'find_free_slots':
+            from datetime import datetime, timedelta
+            date = parameters.get('date')
+            if date:
+                date = datetime.fromisoformat(date)
+            else:
+                date = datetime.now() + timedelta(days=1)  # Default to tomorrow
+                
+            duration_hours = parameters.get('duration_hours', 1.0)
+            working_hours = tuple(parameters.get('working_hours', [9, 17]))
+            
+            result = calendar.find_free_time_slots(date, duration_hours, working_hours)
+            
+        else:
+            return jsonify({
+                "status": "error",
+                "message": f"Unknown action: {action}. Available actions: create_from_command, get_schedule, get_week, schedule_quick, find_free_slots"
+            }), 400
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error in calendar execution: {e}")
+        return jsonify({"error": "An internal error occurred"}), 500
+
+@app.route('/execute/data_analysis', methods=['POST'])
+def execute_data_analysis():
+    """Execute data analysis operations"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Invalid request. JSON data required"}), 400
+        
+        action = data.get('action')
+        parameters = data.get('parameters', {})
+        
+        if not action:
+            return jsonify({"error": "'action' parameter is required"}), 400
+        
+        if action == 'analyze':
+            file_path = parameters.get('file_path')
+            if not file_path:
+                return jsonify({"status": "error", "message": "'file_path' parameter is required"}), 400
+            
+            generate_viz = parameters.get('generate_visualizations', True)
+            report_format = parameters.get('report_format', 'json')
+            
+            result = analyze_data_file(file_path, generate_viz, report_format)
+            
+        elif action == 'quick_summary':
+            file_path = parameters.get('file_path')
+            if not file_path:
+                return jsonify({"status": "error", "message": "'file_path' parameter is required"}), 400
+                
+            result = quick_data_summary(file_path)
+            
+        elif action == 'compare':
+            file_paths = parameters.get('file_paths', [])
+            if len(file_paths) < 2:
+                return jsonify({"status": "error", "message": "At least 2 file paths required for comparison"}), 400
+                
+            analyzer = DataAnalyzer()
+            result = analyzer.compare_datasets(file_paths)
+            
+        else:
+            return jsonify({
+                "status": "error",
+                "message": f"Unknown action: {action}. Available actions: analyze, quick_summary, compare"
+            }), 400
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error in data analysis execution: {e}")
+        return jsonify({"error": "An internal error occurred"}), 500
+
+# --- File Upload and Management ---
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    """Upload files for analysis"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+        
+        # Save file to upload directory
+        upload_dir = '/usr/src/app/data/uploads'
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        file_path = os.path.join(upload_dir, file.filename)
+        file.save(file_path)
+        
+        # Basic file info
+        file_info = {
+            "filename": file.filename,
+            "path": file_path,
+            "size": os.path.getsize(file_path),
+            "uploaded_at": datetime.now().isoformat()
+        }
+        
+        # If it's a CSV, provide quick analysis
+        if file.filename.lower().endswith('.csv'):
+            try:
+                summary = quick_data_summary(file_path)
+                file_info["quick_analysis"] = summary
+            except Exception as e:
+                logger.warning(f"Failed to analyze uploaded CSV: {e}")
+        
+        return jsonify({
+            "status": "success",
+            "message": "File uploaded successfully",
+            "file_info": file_info
+        })
+        
+    except Exception as e:
+        logger.error(f"Error uploading file: {e}")
+        return jsonify({"error": "File upload failed"}), 500
+
+@app.route('/download/<path:filename>')
+def download_file(filename):
+    """Download generated files"""
+    try:
+        return send_from_directory('/usr/src/app/data/output', filename, as_attachment=True)
+    except Exception as e:
+        logger.error(f"Error downloading file: {e}")
+        return jsonify({"error": "File not found"}), 404
+
+# --- System Management ---
+
+@app.route('/system/stats')
+def system_stats():
+    """Get system statistics"""
+    try:
+        import psutil
+        import platform
+        
+        stats = {
+            "system_info": {
+                "platform": platform.system(),
+                "python_version": platform.python_version(),
+                "timestamp": datetime.now().isoformat()
+            },
+            "resources": {
+                "cpu_percent": psutil.cpu_percent(interval=1),
+                "memory_percent": psutil.virtual_memory().percent,
+                "disk_percent": psutil.disk_usage('/').percent
+            },
+            "services": {
+                "nlp_engine": nlp_engine is not None,
+                "rag_system": rag_system is not None,
+                "rag_documents": rag_system.get_stats()["total_documents"] if rag_system else 0
+            }
+        }
+        
+        return jsonify(stats)
+        
+    except ImportError:
+        # psutil not available, return basic info
+        return jsonify({
+            "system_info": {
+                "timestamp": datetime.now().isoformat()
+            },
+            "services": {
+                "nlp_engine": nlp_engine is not None,
+                "rag_system": rag_system is not None
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error getting system stats: {e}")
+        return jsonify({"error": "Failed to get system stats"}), 500
+
+@app.route('/system/rag/clear', methods=['POST'])
+def clear_rag_system():
+    """Clear all documents from RAG system"""
+    if rag_system is None:
+        return jsonify({"error": "RAG System is not available"}), 503
+    
+    try:
+        result = rag_system.clear_all()
+        if result:
+            return jsonify({"message": "RAG system cleared successfully"})
+        else:
+            return jsonify({"error": "Failed to clear RAG system"}), 500
+    except Exception as e:
+        logger.error(f"Error clearing RAG system: {e}")
+        return jsonify({"error": "An internal error occurred"}), 500
+
+@app.route('/system/rag/stats')
+def rag_stats():
+    """Get RAG system statistics"""
+    if rag_system is None:
+        return jsonify({"error": "RAG System is not available"}), 503
+    
+    try:
+        stats = rag_system.get_stats()
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"Error getting RAG stats: {e}")
+        return jsonify({"error": "An internal error occurred"}), 500
+
+# --- Error Handlers ---
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({"error": "Endpoint not found"}), 404
+
+@app.errorhandler(405)
+def method_not_allowed(error):
+    return jsonify({"error": "Method not allowed"}), 405
+
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error(f"Internal server error: {error}")
+    return jsonify({"error": "Internal server error"}), 500
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    return jsonify({"error": "File too large"}), 413
+
+# --- Startup Information ---
+
+@app.before_first_request
+def startup_info():
+    """Log startup information"""
+    logger.info("=== Autonomous AI Assistant Started ===")
+    logger.info(f"NLP Engine: {'✓' if nlp_engine else '✗'}")
+    logger.info(f"RAG System: {'✓' if rag_system else '✗'}")
+    logger.info("Available endpoints:")
+    for rule in app.url_map.iter_rules():
+        if rule.endpoint != 'static':
+            logger.info(f"  {rule.methods} {rule.rule}")
+    logger.info("========================================")
+
+if __name__ == '__main__':
+    port = int(os.getenv('PORT', 5000))
+    debug = os.getenv('DEBUG', 'false').lower() == 'true'
+    
+    logger.info(f"Starting server on port {port} (debug={debug})")
+    app.run(host='0.0.0.0', port=port, debug=debug)
